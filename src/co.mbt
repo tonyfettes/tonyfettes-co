@@ -2,27 +2,27 @@
 priv type Context
 
 ///|
-extern "c" fn Context::new() -> Context = "mygo_context_make"
+extern "c" fn Context::new() -> Context = "moonbit_co_context_make"
 
 ///|
 #borrow(from, to)
-extern "c" fn mygo_shift(from : Context, to : Context) = "mygo_shift"
+extern "c" fn co_shift(from : Context, to : Context) = "moonbit_co_shift"
 
 ///|
 #borrow(context, stack_base, func, data)
-extern "c" fn mygo_reset(
+extern "c" fn co_reset(
   context : Context,
   stack_base : Stack,
   stack_size : UInt64,
   func : FuncRef[(() -> Unit) -> Unit],
   data : () -> Unit,
-) = "mygo_reset"
+) = "moonbit_co_reset"
 
 ///|
 priv type Stack
 
 ///|
-extern "c" fn Stack::new(size : UInt64) -> Stack = "mygo_stack_make"
+extern "c" fn Stack::new(size : UInt64) -> Stack = "moonbit_co_stack_make"
 
 ///|
 priv enum RoutineState {
@@ -45,7 +45,7 @@ pub fn Routine::new(
   let caller = Context::new()
   let callee = Context::new()
   let self : Routine = { state: Running(caller~, callee~, stack~) }
-  mygo_reset(caller, stack, stack_size, f => f(), () => {
+  co_reset(caller, stack, stack_size, f => f(), () => {
     f(self)
     self.state = Stopped
   })
@@ -59,7 +59,7 @@ pub fn Routine::resume_(self : Routine) -> Unit {
   }
   ignore(stack)
   self.state = Running(caller~, callee~, stack~)
-  mygo_shift(caller, callee)
+  co_shift(caller, callee)
 }
 
 ///|
@@ -69,7 +69,7 @@ pub fn Routine::yield_(self : Routine) -> Unit {
   }
   ignore(stack)
   self.state = Yielded(caller~, callee~, stack~)
-  mygo_shift(callee, caller)
+  co_shift(callee, caller)
 }
 
 ///|

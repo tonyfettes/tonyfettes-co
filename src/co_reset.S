@@ -1,4 +1,4 @@
-// mygo__reset(mygo_context_t *ctx, void *stack_top, void (*func)(void *), void *arg)
+// moonbit_co__reset(moonbit_co_context_t *ctx, void *stack_top, void (*func)(void *), void *arg)
 //   rdi = ctx        (context struct to save caller's state into)
 //   rsi = stack_top   (top of the new stack, must be 16-byte aligned)
 //   rdx = func        (function pointer to call)
@@ -8,16 +8,16 @@
 // calls func(arg) on the new stack. When func returns, restores
 // the saved context from ctx and returns to the caller.
 //
-// If func calls mygo_shift to save its context and load ctx,
-// mygo__reset effectively "returns early". A later mygo_shift that
+// If func calls moonbit_co_shift to save its context and load ctx,
+// moonbit_co__reset effectively "returns early". A later moonbit_co_shift that
 // overwrites ctx and loads the saved continuation will cause func
 // to resume; when func eventually returns, the epilogue restores
 // ctx (now pointing to the resumer) and returns to the resumer.
 
 .text
-.globl mygo__reset
-.type mygo__reset, @function
-mygo__reset:
+.globl moonbit_co__reset
+.type moonbit_co__reset, @function
+moonbit_co__reset:
   // Save callee-saved registers into ctx
   movq %rsp, 0(%rdi)
   movq %rbp, 8(%rdi)
@@ -42,7 +42,7 @@ mygo__reset:
   callq *%rdx
 
   // func returned normally — restore context from ctx (which may have
-  // been overwritten by a mygo_shift resume, pointing to the resumer).
+  // been overwritten by a moonbit_co_shift resume, pointing to the resumer).
   movq 0(%r12), %rsp
   movq 8(%r12), %rbp
   movq 16(%r12), %rbx
@@ -55,4 +55,4 @@ mygo__reset:
   movq 24(%r12), %r12
 
   ret
-.size mygo__reset, .-mygo__reset
+.size moonbit_co__reset, .-moonbit_co__reset

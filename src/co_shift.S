@@ -1,4 +1,4 @@
-// mygo_shift(mygo_context_t *from, mygo_context_t *to)
+// moonbit_co_shift(mygo_context_t *from, mygo_context_t *to)
 //   rdi = from   (context struct to save current state into)
 //   rsi = to     (context struct to load new state from)
 //
@@ -6,13 +6,13 @@
 // into `from`, then loads the context from `to` and returns into it.
 //
 // This is the primitive for both yielding (shift) and resuming:
-//   - To shift (yield to delimiter): mygo_shift(&continuation, &reset_ctx)
-//   - To resume a continuation:      mygo_shift(&reset_ctx, &continuation)
+//   - To shift (yield to delimiter): moonbit_co_shift(&continuation, &reset_ctx)
+//   - To resume a continuation:      moonbit_co_shift(&reset_ctx, &continuation)
 
 .text
-.globl mygo_shift
-.type mygo_shift, @function
-mygo_shift:
+.globl moonbit_co_shift
+.type moonbit_co_shift, @function
+moonbit_co_shift:
   // Save callee-saved registers into from
   movq %rsp, 0(%rdi)
   movq %rbp, 8(%rdi)
@@ -38,4 +38,4 @@ mygo_shift:
   movq %rax, (%rsp)
 
   ret
-.size mygo_shift, .-mygo_shift
+.size moonbit_co_shift, .-moonbit_co_shift

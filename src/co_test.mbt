@@ -1,7 +1,7 @@
 ///|
 test "yield_ and resume_" {
   let values = []
-  let co = @mygo.Routine::new(co => {
+  let co = @co.Routine::new(co => {
     values.push(1)
     co.yield_()
     values.push(2)
@@ -15,7 +15,7 @@ test "yield_ and resume_" {
 ///|
 test "Round-robin" {
   let tasks = Array::makei(4, id => {
-    @mygo.Routine::new(co => {
+    @co.Routine::new(co => {
       for i = 0; i < 3; i = i + 1 {
         println("  [task \{id}] step \{i}")
         co.yield_()
