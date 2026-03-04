@@ -1,0 +1,5 @@
+warnings = "-reserved_keyword"
+
+options(
+  "native-stub": [ "mygo.c", "mygo_reset.S", "mygo_shift.S" ],
+)

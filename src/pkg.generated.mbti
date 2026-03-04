@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tonyfettes/mygo"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Routine
+pub fn Routine::new(stack_size? : UInt64, (Self) -> Unit) -> Self
+pub fn Routine::resume_(Self) -> Unit
+pub fn Routine::stopped(Self) -> Bool
+pub fn Routine::yield_(Self) -> Unit
+
+// Type aliases
+
+// Traits
+
