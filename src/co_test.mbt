@@ -148,27 +148,20 @@ test "Same-fringe problem" {
 ///|
 test "Ping-pong" {
   let log : Array[String] = []
-  let pong : Ref[@co.Routine] = { val: @co.Routine::new(fn(_co) {  }) }
-  let ping = @co.Routine::new(fn(co) {
+  let ping = @co.create(co => {
     for i = 0; i < 3; i = i + 1 {
       log.push("ping \{i}")
       co.yield_()
     }
   })
-  pong.val = @co.Routine::new(fn(co) {
+  let pong = @co.create(co => {
     for i = 0; i < 3; i = i + 1 {
       log.push("pong \{i}")
       co.yield_()
     }
   })
-  // Mediator bounces control between ping and pong.
-  while not(ping.stopped()) || not(pong.val.stopped()) {
-    if not(ping.stopped()) {
-      ping.resume_()
-    }
-    if not(pong.val.stopped()) {
-      pong.val.resume_()
-    }
+  while (ping.try_resume(), pong.try_resume()) != (false, false) {
+    continue
   }
   assert_eq(log, ["ping 0", "pong 0", "ping 1", "pong 1", "ping 2", "pong 2"])
 }

@@ -39,6 +39,7 @@ struct Routine {
 }
 
 ///|
+#as_free_fn(create)
 pub fn Routine::new(
   stack_size? : UInt64 = 65536,
   f : (Routine) -> Unit,
@@ -113,4 +114,13 @@ pub fn Routine::yield_(self : Routine) -> Unit {
 ///|
 pub fn Routine::stopped(self : Routine) -> Bool {
   self.state is Stopped
+}
+
+///|
+pub fn Routine::try_resume(self : Routine) -> Bool {
+  guard self.state is Yielded else { return false }
+  self.state = Running
+  co_shift(self.caller, self.callee)
+  ignore(self.stack)
+  true
 }
