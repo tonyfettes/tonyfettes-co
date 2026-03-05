@@ -1,3 +1,3 @@
 options(
-  "native-stub": [ "co.c", "co_reset.S", "co_shift.S" ],
+  "native-stub": [ "co.c" ],
 )

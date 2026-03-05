@@ -4,14 +4,18 @@
 // calls func(arg) on the new stack. When func returns, restores
 // the saved context from ctx and returns to the caller.
 
-#if defined(__APPLE__)
+#if defined(__ELF__)
+#define SYMBOL(name) name
+#define FUNC_TYPE(name) .type name, @function
+#define FUNC_SIZE(name) .size name, .-name
+#elif defined(__APPLE__)
 #define SYMBOL(name) _##name
 #define FUNC_TYPE(name)
 #define FUNC_SIZE(name)
 #else
 #define SYMBOL(name) name
-#define FUNC_TYPE(name) .type name, @function
-#define FUNC_SIZE(name) .size name, .-name
+#define FUNC_TYPE(name)
+#define FUNC_SIZE(name)
 #endif
 
 .text
@@ -21,8 +25,73 @@ FUNC_TYPE(SYMBOL(moonbit_co__reset))
 SYMBOL(moonbit_co__reset):
 
 #if defined(__x86_64__)
-  // x86_64: rdi=ctx, rsi=stack_top, rdx=func, rcx=arg
 
+#ifdef _WIN32
+  // Win64 ABI: rcx=ctx, rdx=stack_top, r8=func, r9=arg
+  // Save callee-saved registers into ctx
+  movq %rsp, 0(%rcx)
+  movq %rbp, 8(%rcx)
+  movq %rbx, 16(%rcx)
+  movq %r12, 24(%rcx)
+  movq %r13, 32(%rcx)
+  movq %r14, 40(%rcx)
+  movq %r15, 48(%rcx)
+  // Save return address
+  movq (%rsp), %rax
+  movq %rax, 56(%rcx)
+  // Save Win64 extra callee-saved registers
+  movq %rdi, 64(%rcx)
+  movq %rsi, 72(%rcx)
+  movdqu %xmm6,  80(%rcx)
+  movdqu %xmm7,  96(%rcx)
+  movdqu %xmm8,  112(%rcx)
+  movdqu %xmm9,  128(%rcx)
+  movdqu %xmm10, 144(%rcx)
+  movdqu %xmm11, 160(%rcx)
+  movdqu %xmm12, 176(%rcx)
+  movdqu %xmm13, 192(%rcx)
+  movdqu %xmm14, 208(%rcx)
+  movdqu %xmm15, 224(%rcx)
+
+  // Preserve ctx pointer in a callee-saved register
+  movq %rcx, %r12
+
+  // Switch to the new stack
+  movq %rdx, %rsp
+
+  // Allocate 32-byte shadow space (Win64 ABI requirement)
+  subq $32, %rsp
+
+  // Call func(arg): rcx=arg (first param on Win64), func is in r8
+  movq %r9, %rcx
+  callq *%r8
+
+  // Restore context from ctx
+  movq 0(%r12), %rsp
+  movq 8(%r12), %rbp
+  movq 16(%r12), %rbx
+  // r12 restored last since we're using it as ctx pointer
+  movq 32(%r12), %r13
+  movq 40(%r12), %r14
+  movq 48(%r12), %r15
+  movq 56(%r12), %rax
+  movq %rax, (%rsp)
+  // Restore Win64 extra callee-saved registers
+  movq 64(%r12), %rdi
+  movq 72(%r12), %rsi
+  movdqu 80(%r12),  %xmm6
+  movdqu 96(%r12),  %xmm7
+  movdqu 112(%r12), %xmm8
+  movdqu 128(%r12), %xmm9
+  movdqu 144(%r12), %xmm10
+  movdqu 160(%r12), %xmm11
+  movdqu 176(%r12), %xmm12
+  movdqu 192(%r12), %xmm13
+  movdqu 208(%r12), %xmm14
+  movdqu 224(%r12), %xmm15
+  movq 24(%r12), %r12
+#else
+  // SysV ABI: rdi=ctx, rsi=stack_top, rdx=func, rcx=arg
   // Save callee-saved registers into ctx
   movq %rsp, 0(%rdi)
   movq %rbp, 8(%rdi)
@@ -55,6 +124,7 @@ SYMBOL(moonbit_co__reset):
   movq 56(%r12), %rax
   movq %rax, (%rsp)
   movq 24(%r12), %r12
+#endif
 
   ret
 
@@ -100,3 +170,7 @@ SYMBOL(moonbit_co__reset):
 #endif
 
 FUNC_SIZE(SYMBOL(moonbit_co__reset))
+
+#if defined(__ELF__)
+.section .note.GNU-stack, "", @progbits
+#endif

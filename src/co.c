@@ -8,7 +8,7 @@
 #endif
 
 typedef struct moonbit_co_context {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_M_X64)
   uint64_t rsp;
   uint64_t rbp;
   uint64_t rbx;
@@ -17,6 +17,20 @@ typedef struct moonbit_co_context {
   uint64_t r14;
   uint64_t r15;
   uint64_t rax;
+#ifdef _WIN32
+  uint64_t rdi;
+  uint64_t rsi;
+  uint8_t  xmm6[16];
+  uint8_t  xmm7[16];
+  uint8_t  xmm8[16];
+  uint8_t  xmm9[16];
+  uint8_t  xmm10[16];
+  uint8_t  xmm11[16];
+  uint8_t  xmm12[16];
+  uint8_t  xmm13[16];
+  uint8_t  xmm14[16];
+  uint8_t  xmm15[16];
+#endif
 #elif defined(__aarch64__)
   uint64_t sp;
   uint64_t x29; // fp
@@ -101,7 +115,13 @@ moonbit_co_stack_make(uint64_t size) {
 #endif
 
 extern void
-moonbit_co_shift(moonbit_co_context_t *from, moonbit_co_context_t *to);
+moonbit_co__shift(moonbit_co_context_t *from, moonbit_co_context_t *to);
+
+MOONBIT_FFI_EXPORT
+void
+moonbit_co_shift(moonbit_co_context_t *from, moonbit_co_context_t *to) {
+  moonbit_co__shift(from, to);
+}
 
 extern void
 moonbit_co__reset(
