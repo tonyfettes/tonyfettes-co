@@ -26,50 +26,55 @@ extern "c" fn Stack::new(size : UInt64) -> Stack = "moonbit_co_stack_make"
 
 ///|
 priv enum RoutineState {
-  Running(caller~ : Context, callee~ : Context, stack~ : Stack)
-  Yielded(caller~ : Context, callee~ : Context, stack~ : Stack)
+  Running
+  Yielded
   Stopped
 }
 
 ///|
 struct Routine {
   mut state : RoutineState
+  caller : Context
+  callee : Context
+  stack : Stack
 }
 
 ///|
 pub fn Routine::new(
-  stack_size? : UInt64 = 4096,
+  stack_size? : UInt64 = 65536,
   f : (Routine) -> Unit,
 ) -> Routine {
   let stack = Stack::new(stack_size)
   let caller = Context::new()
   let callee = Context::new()
-  let self : Routine = { state: Running(caller~, callee~, stack~) }
+  let self : Routine = { state: Running, caller, callee, stack }
   co_reset(caller, stack, stack_size, f => f(), () => {
     f(self)
+    guard self.state is Running else {
+      abort("Coroutine not in Running state at completion")
+    }
     self.state = Stopped
+    ignore(self.stack)
   })
   self
 }
 
 ///|
 pub fn Routine::resume_(self : Routine) -> Unit {
-  guard self.state is Yielded(caller~, callee~, stack~) else {
+  guard self.state is Yielded else {
     abort("Cannot resume a running coroutine")
   }
-  ignore(stack)
-  self.state = Running(caller~, callee~, stack~)
-  co_shift(caller, callee)
+  self.state = Running
+  co_shift(self.caller, self.callee)
 }
 
 ///|
 pub fn Routine::yield_(self : Routine) -> Unit {
-  guard self.state is Running(caller~, callee~, stack~) else {
+  guard self.state is Running else {
     abort("Cannot yield from a yielded coroutine")
   }
-  ignore(stack)
-  self.state = Yielded(caller~, callee~, stack~)
-  co_shift(callee, caller)
+  self.state = Yielded
+  co_shift(self.callee, self.caller)
 }
 
 ///|
