@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 typedef struct moonbit_co_context {
+#if defined(__x86_64__)
   uint64_t rsp;
   uint64_t rbp;
   uint64_t rbx;
@@ -10,6 +11,23 @@ typedef struct moonbit_co_context {
   uint64_t r14;
   uint64_t r15;
   uint64_t rax;
+#elif defined(__aarch64__)
+  uint64_t sp;
+  uint64_t x29; // fp
+  uint64_t x30; // lr
+  uint64_t x19;
+  uint64_t x20;
+  uint64_t x21;
+  uint64_t x22;
+  uint64_t x23;
+  uint64_t x24;
+  uint64_t x25;
+  uint64_t x26;
+  uint64_t x27;
+  uint64_t x28;
+#else
+#error "Unsupported architecture"
+#endif
 } moonbit_co_context_t;
 
 MOONBIT_FFI_EXPORT
