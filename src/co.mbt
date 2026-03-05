@@ -64,6 +64,40 @@ pub fn Routine::resume_(self : Routine) -> Unit {
   }
   self.state = Running
   co_shift(self.caller, self.callee)
+  // Extend the lifetime of self.stack past co_shift.
+  //
+  // MoonBit uses reference counting. Without this ignore, the compiler
+  // sees that self is unused after reading self.caller/self.callee, so
+  // it emits decref(self) *before* co_shift. This is critical on the
+  // last resume, where f runs to completion on the coroutine stack:
+  //
+  //   resume_                         coroutine (on mmap'd stack)
+  //   -------                         ----------------------------
+  //   read self.caller, self.callee
+  //   decref(self)
+  //   co_shift ─────────────────────► f(self) runs...
+  //                                   f(self) returns
+  //                                   decref(self) ← last ref, RC → 0
+  //                                     → Stack finalizer: munmap!
+  //                                   self.state = Stopped ← CRASH
+  //                                   (still on munmap'd stack)
+  //                                   co_reset.S restores caller ctx
+  //
+  // With ignore(self.stack), resume_ keeps a reference to self across
+  // co_shift. When f(self) returns and the closure decrefs self, the
+  // refcount stays > 0. The assembly in co_reset.S restores the caller
+  // context (back to resume_), and only then is the stack released:
+  //
+  //   resume_                         coroutine (on mmap'd stack)
+  //   -------                         ----------------------------
+  //   read self.caller, self.callee
+  //   co_shift ─────────────────────► f(self) runs...
+  //                                   f(self) returns
+  //                                   decref(self) ← RC > 0, safe
+  //                                   self.state = Stopped
+  //   co_shift ◄──────────────────── co_reset.S restores caller ctx
+  //   ignore(self.stack)
+  //   decref(self)          ← safe: back on caller's stack
   ignore(self.stack)
 }
 
