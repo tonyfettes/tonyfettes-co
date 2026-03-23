@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "tonyfettes/co/runtime"
+package "tonyfettes/co/io"
 
 // Values
 pub fn yield_() -> Unit
