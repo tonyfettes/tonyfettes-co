@@ -66,7 +66,6 @@ fn Scheduler::next(self : Scheduler) -> Task {
   loop self.ready.pop_front() {
     Some(next) => next
     None => {
-      abort("@tonyfettes/co: deadlock")
       @runtime.yield_()
       continue self.ready.pop_front()
     }
