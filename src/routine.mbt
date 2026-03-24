@@ -26,7 +26,8 @@ extern "c" fn Stack::new(size : UInt64) -> Stack = "moonbit_co_stack_make"
 ///|
 priv enum State {
   Running
-  Yielded
+  Scheduled
+  Suspended
   Stopped
 } derive(Show)
 
@@ -93,7 +94,7 @@ pub fn Task::current() -> Task {
 /// otherwise it will never be woken up.
 pub fn Task::suspend() -> Unit {
   let prev = curr.val
-  prev.state = Yielded
+  prev.state = Suspended
   let next = scheduler.next()
   next.state = Running
   co_shift(prev.context, next.context)
@@ -108,6 +109,8 @@ pub fn Task::suspend() -> Unit {
 ///|
 /// Make a parked routine runnable by pushing it to the ready queue.
 pub fn Task::schedule(self : Task) -> Unit {
+  guard self.state is Suspended else { return }
+  self.state = Scheduled
   scheduler.schedule(self)
 }
 
@@ -122,7 +125,7 @@ pub fn Task::new(
   let creator = curr.val
   let stack = Stack::new(stack_size)
   let task = Task::raw(name~, state=Running, stack~)
-  creator.state = Yielded
+  creator.state = Scheduled
   scheduler.schedule(creator)
   curr.val = task
   // Note: unlike co_shift in schedule(), we don't need ignore(callee.stack)
