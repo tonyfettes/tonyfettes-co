@@ -1,4 +1,10 @@
 ///|
+priv type Io
+
+///|
+extern "c" fn Io::new() -> Io = "moonbit_co_io_create"
+
+///|
 priv struct IORequest {
   task : @co.Task
   mut value : UInt64
@@ -11,8 +17,9 @@ suberror IOError {
 }
 
 ///|
-#borrow(path, req)
+#borrow(io, path, req)
 extern "c" fn submit_open(
+  io : Io,
   path : Bytes,
   flags : Int,
   mode : Int,
@@ -20,8 +27,9 @@ extern "c" fn submit_open(
 ) = "moonbit_co_io_submit_open"
 
 ///|
-#borrow(bytes, req)
+#borrow(io, bytes, req)
 extern "c" fn submit_read(
+  io : Io,
   handle : UInt64,
   bytes : Bytes,
   length : Int,
@@ -29,8 +37,9 @@ extern "c" fn submit_read(
 ) = "moonbit_co_io_submit_read"
 
 ///|
-#borrow(bytes, req)
+#borrow(io, bytes, req)
 extern "c" fn submit_write(
+  io : Io,
   handle : UInt64,
   bytes : Bytes,
   length : Int,
@@ -38,15 +47,13 @@ extern "c" fn submit_write(
 ) = "moonbit_co_io_submit_write"
 
 ///|
-#borrow(req)
-extern "c" fn submit_close(
-  handle : UInt64,
-  req : IORequest,
-) = "moonbit_co_io_submit_close"
+#borrow(io, req)
+extern "c" fn submit_close(io : Io, handle : UInt64, req : IORequest) = "moonbit_co_io_submit_close"
 
 ///|
-#borrow(reqs, values, errors, length)
+#borrow(io, reqs, values, errors, length)
 extern "c" fn io_poll(
+  io : Io,
   reqs : FixedArray[IORequest],
   values : FixedArray[UInt64],
   errors : FixedArray[Int],
@@ -58,10 +65,14 @@ extern "c" fn io_poll(
 let max_completions : Int = 256
 
 ///|
-let poll_reqs : FixedArray[IORequest] = FixedArray::make(
-  max_completions,
-  IORequest::{ task: @co.Task::current(), value: 0, error: 0 },
-)
+let ring : Io = Io::new()
+
+///|
+let poll_reqs : FixedArray[IORequest] = FixedArray::make(max_completions, IORequest::{
+  task: @co.Task::current(),
+  value: 0,
+  error: 0,
+})
 
 ///|
 let poll_values : FixedArray[UInt64] = FixedArray::make(max_completions, 0)
@@ -71,8 +82,8 @@ let poll_errors : FixedArray[Int] = FixedArray::make(max_completions, 0)
 
 ///|
 pub fn yield_() -> Unit {
-  let length = Ref::new(0)
-  io_poll(poll_reqs, poll_values, poll_errors, length, -1)
+  let length = Ref::new(max_completions)
+  io_poll(ring, poll_reqs, poll_values, poll_errors, length, -1)
   for i in 0..<length.val {
     poll_reqs[i].value = poll_values[i]
     poll_reqs[i].error = poll_errors[i]
@@ -83,7 +94,7 @@ pub fn yield_() -> Unit {
 ///|
 pub fn open(path : Bytes, flags : Int, mode : Int) -> UInt64 raise IOError {
   let req = IORequest::{ task: @co.Task::current(), value: 0, error: 0 }
-  submit_open(path, flags, mode, req)
+  submit_open(ring, path, flags, mode, req)
   @co.Task::suspend()
   if req.error != 0 {
     raise IOError(req.error)
@@ -94,7 +105,7 @@ pub fn open(path : Bytes, flags : Int, mode : Int) -> UInt64 raise IOError {
 ///|
 pub fn read(handle : UInt64, bytes : Bytes, length : Int) -> Int raise IOError {
   let req = IORequest::{ task: @co.Task::current(), value: 0, error: 0 }
-  submit_read(handle, bytes, length, req)
+  submit_read(ring, handle, bytes, length, req)
   @co.Task::suspend()
   if req.error != 0 {
     raise IOError(req.error)
@@ -103,13 +114,9 @@ pub fn read(handle : UInt64, bytes : Bytes, length : Int) -> Int raise IOError {
 }
 
 ///|
-pub fn write(
-  handle : UInt64,
-  bytes : Bytes,
-  length : Int,
-) -> Int raise IOError {
+pub fn write(handle : UInt64, bytes : Bytes, length : Int) -> Int raise IOError {
   let req = IORequest::{ task: @co.Task::current(), value: 0, error: 0 }
-  submit_write(handle, bytes, length, req)
+  submit_write(ring, handle, bytes, length, req)
   @co.Task::suspend()
   if req.error != 0 {
     raise IOError(req.error)
@@ -120,7 +127,7 @@ pub fn write(
 ///|
 pub fn close(handle : UInt64) -> Unit raise IOError {
   let req = IORequest::{ task: @co.Task::current(), value: 0, error: 0 }
-  submit_close(handle, req)
+  submit_close(ring, handle, req)
   @co.Task::suspend()
   if req.error != 0 {
     raise IOError(req.error)
