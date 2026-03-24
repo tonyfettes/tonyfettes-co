@@ -5,22 +5,17 @@ struct Future[T] {
 }
 
 ///|
-#callsite(autofill(loc))
-pub fn[T] Future::new(
-  loc~ : SourceLoc,
-  name? : String = loc.to_string(),
-  stack_size? : UInt64 = 65536,
-  f : () -> T,
-) -> Future[T] {
-  let future = Future::{ value: None, waiter: [] }
-  launch(loc~, name~, stack_size~, () => {
-    future.value = Some(f())
-    for task in future.waiter {
-      task.schedule()
-    }
-    future.waiter.clear()
-  })
-  future
+pub fn[T] Future::new() -> Future[T] {
+  Future::{ value: None, waiter: Array::new() }
+}
+
+///|
+pub fn[T] Future::set(self : Future[T], value : T) -> Unit {
+  self.value = Some(value)
+  for task in self.waiter {
+    task.schedule()
+  }
+  self.waiter.clear()
 }
 
 ///|

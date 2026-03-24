@@ -1,4 +1,4 @@
 ///|
 pub fn yield_() -> Unit {
-  abort("")
+  abort("@tonyfettes/co/runtime: deadlock")
 }
