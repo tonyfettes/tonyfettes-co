@@ -5,4 +5,5 @@ import {
 
 options(
   "native-stub": [ "co.c" ],
+  overrides: [ "tonyfettes/co/runtime/abort" ],
 )
