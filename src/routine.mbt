@@ -62,7 +62,7 @@ fn Scheduler::next(self : Scheduler) -> Task {
   loop self.ready.pop_front() {
     Some(next) => next
     None => {
-      @runtime.yield_()
+      @runtime.suspend()
       continue self.ready.pop_front()
     }
   }

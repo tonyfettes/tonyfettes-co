@@ -52,7 +52,7 @@ extern "c" fn submit_close(io : Io, handle : UInt64, req : IORequest) = "moonbit
 
 ///|
 #borrow(io, reqs, values, errors, length)
-extern "c" fn io_poll(
+extern "c" fn io_suspend(
   io : Io,
   reqs : FixedArray[IORequest],
   values : FixedArray[UInt64],
@@ -81,9 +81,9 @@ let poll_values : FixedArray[UInt64] = FixedArray::make(max_completions, 0)
 let poll_errors : FixedArray[Int] = FixedArray::make(max_completions, 0)
 
 ///|
-pub fn yield_() -> Unit {
+pub fn suspend() -> Unit {
   let length = Ref::new(max_completions)
-  io_poll(ring, poll_reqs, poll_values, poll_errors, length, -1)
+  io_suspend(ring, poll_reqs, poll_values, poll_errors, length, -1)
   for i in 0..<length.val {
     poll_reqs[i].value = poll_values[i]
     poll_reqs[i].error = poll_errors[i]

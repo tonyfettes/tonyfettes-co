@@ -2,8 +2,6 @@
 package "tonyfettes/co"
 
 // Values
-#callsite(autofill(loc))
-pub fn launch(loc~ : SourceLoc, name? : String, stack_size? : UInt64, () -> Unit) -> Unit
 
 // Errors
 
@@ -14,12 +12,14 @@ pub fn[T] Channel::recv(Self[T]) -> T
 pub fn[T] Channel::send(Self[T], T) -> Unit
 
 type Future[T]
-#callsite(autofill(loc))
-pub fn[T] Future::new(loc~ : SourceLoc, name? : String, stack_size? : UInt64, () -> T) -> Self[T]
+pub fn[T] Future::new() -> Self[T]
+pub fn[T] Future::set(Self[T], T) -> Unit
 pub fn[T] Future::wait(Self[T]) -> T
 
 type Task
 pub fn Task::current() -> Self
+#callsite(autofill(loc))
+pub fn Task::new(loc~ : SourceLoc, name? : String, stack_size? : UInt64, () -> Unit) -> Self
 pub fn Task::schedule(Self) -> Unit
 pub fn Task::suspend() -> Unit
 

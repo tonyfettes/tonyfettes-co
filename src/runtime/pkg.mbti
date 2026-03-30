@@ -2,7 +2,7 @@
 package "tonyfettes/co/runtime"
 
 // Values
-pub fn yield_() -> Unit
+pub fn suspend() -> Unit
 
 // Errors
 
@@ -11,4 +11,3 @@ pub fn yield_() -> Unit
 // Type aliases
 
 // Traits
-

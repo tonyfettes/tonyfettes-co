@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tonyfettes/co/io"
+
+// Values
+pub fn close(UInt64) -> Unit raise IOError
+
+pub fn open(Bytes, Int, Int) -> UInt64 raise IOError
+
+pub fn read(UInt64, Bytes, Int) -> Int raise IOError
+
+pub fn suspend() -> Unit
+
+pub fn write(UInt64, Bytes, Int) -> Int raise IOError
+
+// Errors
+type IOError
+
+// Types and methods
+
+// Type aliases
+
+// Traits

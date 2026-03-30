@@ -1,8 +1,0 @@
-import {
-  "tonyfettes/co",
-}
-
-options(
-  "native-stub": [ "io.c" ],
-  "implements": "tonyfettes/co/runtime",
-)
