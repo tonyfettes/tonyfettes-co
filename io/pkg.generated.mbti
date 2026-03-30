@@ -1,21 +1,22 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "tonyfettes/co/io"
+package "tonyfettes/co-io"
 
 // Values
-pub fn close(UInt64) -> Unit raise IOError
+pub fn close(Handle) -> Unit raise Errno
 
-pub fn open(Bytes, Int, Int) -> UInt64 raise IOError
+pub fn open(Bytes, Int, Int) -> Handle raise Errno
 
-pub fn read(UInt64, Bytes, Int) -> Int raise IOError
+pub fn read(Handle, Bytes, Int) -> Int raise Errno
 
 pub fn suspend() -> Unit
 
-pub fn write(UInt64, Bytes, Int) -> Int raise IOError
+pub fn write(Handle, Bytes, Int) -> Int raise Errno
 
 // Errors
-type IOError
+type Errno
 
 // Types and methods
+type Handle
 
 // Type aliases
 
