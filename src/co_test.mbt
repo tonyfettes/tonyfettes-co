@@ -119,6 +119,75 @@ test "Future: multiple futures" {
 }
 
 ///|
+test "Task: spawn and complete" {
+  let result = @co.Future::new()
+  let _ = @co.Task::new(name="worker", () => result.set(42))
+  assert_eq(result.wait(), 42)
+}
+
+///|
+test "Task: FIFO scheduling order" {
+  let order : Array[Int] = []
+  let done = @co.Channel::new()
+  let _ = @co.Task::new(name="a", () => { order.push(1); done.send(()) })
+  let _ = @co.Task::new(name="b", () => { order.push(2); done.send(()) })
+  let _ = @co.Task::new(name="c", () => { order.push(3); done.send(()) })
+  done.recv()
+  done.recv()
+  done.recv()
+  assert_eq(order, [1, 2, 3])
+}
+
+///|
+test "Future: multiple waiters" {
+  let f = @co.Future::new()
+  let results : Array[Int] = []
+  let done = @co.Channel::new()
+  let _ = @co.Task::new(name="w1", () => {
+    results.push(f.wait())
+    done.send(())
+  })
+  let _ = @co.Task::new(name="w2", () => {
+    results.push(f.wait())
+    done.send(())
+  })
+  let _ = @co.Task::new(name="w3", () => {
+    results.push(f.wait())
+    done.send(())
+  })
+  f.set(99)
+  done.recv()
+  done.recv()
+  done.recv()
+  assert_eq(results, [99, 99, 99])
+}
+
+///|
+test "Channel: send wakes one reader" {
+  let chan : @co.Channel[Int] = @co.Channel::new()
+  let woken : Array[String] = []
+  let done = @co.Channel::new()
+  let _ = @co.Task::new(name="r1", () => {
+    let _ = chan.recv()
+    woken.push("r1")
+    done.send(())
+  })
+  let _ = @co.Task::new(name="r2", () => {
+    let _ = chan.recv()
+    woken.push("r2")
+    done.send(())
+  })
+  // Send one value — only one reader should wake
+  chan.send(1)
+  done.recv()
+  assert_eq(woken, ["r1"])
+  // Send second — the other reader wakes
+  chan.send(2)
+  done.recv()
+  assert_eq(woken, ["r1", "r2"])
+}
+
+///|
 test "Future: blocks until ready" {
   let chan = @co.Channel::new()
   let f = @co.Future::new()
