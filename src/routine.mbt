@@ -45,19 +45,15 @@ fn Task::raw(name~ : String, state~ : State, stack? : Stack) -> Task {
 }
 
 ///|
-let main : Task = Task::raw(name="main", state=Running)
-
-///|
-let curr : Ref[Task] = Ref::new(main)
-
-///|
 priv struct Scheduler {
+  curr : Ref[Task]
   ready : @deque.Deque[Task]
 }
 
 ///|
 fn Scheduler::new() -> Scheduler {
-  Scheduler::{ ready: @deque.Deque::new() }
+  let main = Task::raw(name="main", state=Running)
+  Scheduler::{ curr: Ref::new(main), ready: @deque.Deque::new() }
 }
 
 ///|
@@ -83,7 +79,7 @@ fn Scheduler::schedule(self : Scheduler, task : Task) -> Unit {
 ///|
 /// Get the currently running routine.
 pub fn Task::current() -> Task {
-  curr.val
+  scheduler.curr.val
 }
 
 ///|
@@ -92,7 +88,7 @@ pub fn Task::current() -> Task {
 /// (ready queue, channel readers, IO pending, etc.) before calling park,
 /// otherwise it will never be woken up.
 pub fn Task::suspend() -> Unit {
-  let prev = curr.val
+  let prev = scheduler.curr.val
   prev.state = Suspended
   let next = scheduler.next()
   next.state = Running
@@ -101,7 +97,7 @@ pub fn Task::suspend() -> Unit {
   // This is done AFTER co_shift (on our own stack) rather than BEFORE
   // (on the switcher's stack), so that the decref of the old current.val
   // never happens on a stack that's about to be freed.
-  curr.val = prev
+  scheduler.curr.val = prev
   ignore(next.stack)
 }
 
@@ -121,12 +117,12 @@ pub fn Task::new(
   stack_size? : UInt64 = 65536,
   f : () -> Unit,
 ) -> Task {
-  let creator = curr.val
+  let creator = scheduler.curr.val
   let stack = Stack::new(stack_size)
   let task = Task::raw(name~, state=Running, stack~)
   creator.state = Scheduled
   scheduler.schedule(creator)
-  curr.val = task
+  scheduler.curr.val = task
   // Note: unlike co_shift in schedule(), we don't need ignore(callee.stack)
   // here because #borrow(stack) on co_reset keeps the `stack` parameter alive
   // across the call, preventing munmap even if `callee` is decreffed early.
@@ -144,6 +140,6 @@ pub fn Task::new(
   })
   // Creator resumes here (via co_shift → co_reset restore).
   // Set current to ourselves — same logic as after co_shift in park().
-  curr.val = creator
+  scheduler.curr.val = creator
   task
 }
