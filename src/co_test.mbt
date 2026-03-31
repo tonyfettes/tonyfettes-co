@@ -129,9 +129,18 @@ test "Task: spawn and complete" {
 test "Task: FIFO scheduling order" {
   let order : Array[Int] = []
   let done = @co.Channel::new()
-  let _ = @co.Task::new(name="a", () => { order.push(1); done.send(()) })
-  let _ = @co.Task::new(name="b", () => { order.push(2); done.send(()) })
-  let _ = @co.Task::new(name="c", () => { order.push(3); done.send(()) })
+  let _ = @co.Task::new(name="a", () => {
+    order.push(1)
+    done.send(())
+  })
+  let _ = @co.Task::new(name="b", () => {
+    order.push(2)
+    done.send(())
+  })
+  let _ = @co.Task::new(name="c", () => {
+    order.push(3)
+    done.send(())
+  })
   done.recv()
   done.recv()
   done.recv()
