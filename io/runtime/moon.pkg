@@ -1,0 +1,7 @@
+import {
+  "tonyfettes/co-io" @io,
+}
+
+options(
+  implement: "tonyfettes/co/runtime",
+)

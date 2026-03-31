@@ -1,0 +1,12 @@
+import {
+  "tonyfettes/co",
+}
+
+import {
+  "tonyfettes/co-io" @io,
+} for "test"
+
+options(
+  "native-stub": [ "io.c" ],
+  overrides: [ "tonyfettes/co-io/runtime" ],
+)
