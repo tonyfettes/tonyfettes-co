@@ -52,3 +52,13 @@ jobs:
 
       - name: moon test (release)
         run: moon test --release
+
+      - name: moon test (io)
+        if: ${{ matrix.os != 'windows-latest' }}
+        working-directory: io
+        run: moon test
+
+      - name: moon test (io, release)
+        if: ${{ matrix.os != 'windows-latest' }}
+        working-directory: io
+        run: moon test --release

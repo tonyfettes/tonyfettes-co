@@ -58,6 +58,13 @@ struct moonbit_co_io {
 
   // Pending submission count
   uint32_t sq_pending;
+
+  // Per-slot request state (value/error/task pointers)
+  struct {
+    uint64_t *value;
+    int32_t *error;
+    void *task;
+  } reqs[256];
 };
 
 static void
@@ -144,7 +151,7 @@ moonbit_co_io_create(void) {
 // -- submission helpers --
 
 static struct io_uring_sqe *
-get_sqe(struct moonbit_co_io *io) {
+get_sqe(struct moonbit_co_io *io, uint32_t *out_slot) {
   uint32_t tail = *io->sq_tail;
   uint32_t head =
     atomic_load_explicit((_Atomic uint32_t *)io->sq_head, memory_order_acquire);
@@ -171,6 +178,7 @@ get_sqe(struct moonbit_co_io *io) {
   atomic_thread_fence(memory_order_release);
   io->sq_pending++;
 
+  *out_slot = index;
   return sqe;
 }
 
@@ -182,15 +190,23 @@ moonbit_co_io_submit_open(
   const char *path,
   int32_t flags,
   int32_t mode,
+  uint64_t *value,
+  int32_t *error,
   void *task
 ) {
-  struct io_uring_sqe *sqe = get_sqe(io);
+  uint32_t slot;
+  struct io_uring_sqe *sqe = get_sqe(io, &slot);
   sqe->opcode = IORING_OP_OPENAT;
   sqe->fd = AT_FDCWD;
   sqe->addr = (uint64_t)(uintptr_t)path;
   sqe->len = (uint32_t)mode;
   sqe->open_flags = (uint32_t)flags;
-  sqe->user_data = (uint64_t)(uintptr_t)task;
+  sqe->user_data = slot;
+  io->reqs[slot].value = value;
+  io->reqs[slot].error = error;
+  io->reqs[slot].task = task;
+  moonbit_decref(io);
+  moonbit_decref((void *)path);
 }
 
 void
@@ -199,15 +215,23 @@ moonbit_co_io_submit_read(
   uint64_t handle,
   void *bytes,
   int32_t length,
+  uint64_t *value,
+  int32_t *error,
   void *task
 ) {
-  struct io_uring_sqe *sqe = get_sqe(io);
+  uint32_t slot;
+  struct io_uring_sqe *sqe = get_sqe(io, &slot);
   sqe->opcode = IORING_OP_READ;
   sqe->fd = (int32_t)handle;
   sqe->addr = (uint64_t)(uintptr_t)bytes;
   sqe->len = (uint32_t)length;
   sqe->off = (uint64_t)-1; // use current file offset
-  sqe->user_data = (uint64_t)(uintptr_t)task;
+  sqe->user_data = slot;
+  io->reqs[slot].value = value;
+  io->reqs[slot].error = error;
+  io->reqs[slot].task = task;
+  moonbit_decref(io);
+  moonbit_decref(bytes);
 }
 
 void
@@ -216,36 +240,49 @@ moonbit_co_io_submit_write(
   uint64_t handle,
   void *bytes,
   int32_t length,
+  uint64_t *value,
+  int32_t *error,
   void *task
 ) {
-  struct io_uring_sqe *sqe = get_sqe(io);
+  uint32_t slot;
+  struct io_uring_sqe *sqe = get_sqe(io, &slot);
   sqe->opcode = IORING_OP_WRITE;
   sqe->fd = (int32_t)handle;
   sqe->addr = (uint64_t)(uintptr_t)bytes;
   sqe->len = (uint32_t)length;
   sqe->off = (uint64_t)-1; // use current file offset
-  sqe->user_data = (uint64_t)(uintptr_t)task;
+  sqe->user_data = slot;
+  io->reqs[slot].value = value;
+  io->reqs[slot].error = error;
+  io->reqs[slot].task = task;
+  moonbit_decref(io);
+  moonbit_decref(bytes);
 }
 
 void
 moonbit_co_io_submit_close(
   struct moonbit_co_io *io,
   uint64_t handle,
+  uint64_t *value,
+  int32_t *error,
   void *task
 ) {
-  struct io_uring_sqe *sqe = get_sqe(io);
+  uint32_t slot;
+  struct io_uring_sqe *sqe = get_sqe(io, &slot);
   sqe->opcode = IORING_OP_CLOSE;
   sqe->fd = (int32_t)handle;
-  sqe->user_data = (uint64_t)(uintptr_t)task;
+  sqe->user_data = slot;
+  io->reqs[slot].value = value;
+  io->reqs[slot].error = error;
+  io->reqs[slot].task = task;
+  moonbit_decref(io);
 }
 
 void
 moonbit_co_io_poll(
   struct moonbit_co_io *io,
   void **tasks,
-  uint64_t *values,
-  int32_t *errors,
-  int32_t *length,
+  int32_t *count,
   int64_t timeout
 ) {
   // Flush any pending submissions and wait for at least one completion
@@ -264,20 +301,26 @@ moonbit_co_io_poll(
     atomic_load_explicit((_Atomic uint32_t *)io->cq_tail, memory_order_acquire);
   uint32_t mask = *io->cq_ring_mask;
 
-  int32_t capacity = *length;
-  int32_t count = 0;
-  while (head != tail && count < capacity) {
+  int32_t capacity = *count;
+  int32_t n = 0;
+  while (head != tail && n < capacity) {
     struct io_uring_cqe *cqe = &io->cqes[head & mask];
+    uint32_t slot = (uint32_t)cqe->user_data;
 
-    tasks[count] = (void *)(uintptr_t)cqe->user_data;
     if (cqe->res >= 0) {
-      values[count] = (uint64_t)cqe->res;
-      errors[count] = 0;
+      *io->reqs[slot].value = (uint64_t)cqe->res;
+      *io->reqs[slot].error = 0;
     } else {
-      values[count] = 0;
-      errors[count] = -cqe->res; // positive errno
+      *io->reqs[slot].value = 0;
+      *io->reqs[slot].error = -cqe->res; // positive errno
     }
-    count++;
+
+    moonbit_decref(io->reqs[slot].value);
+    moonbit_decref(io->reqs[slot].error);
+    tasks[n] = io->reqs[slot].task;
+    moonbit_decref(io->reqs[slot].task);
+
+    n++;
     head++;
   }
 
@@ -285,5 +328,5 @@ moonbit_co_io_poll(
     (_Atomic uint32_t *)io->cq_head, head, memory_order_release
   );
 
-  *length = count;
+  *count = n;
 }
