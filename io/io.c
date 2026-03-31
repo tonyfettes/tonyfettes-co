@@ -6,8 +6,7 @@
 // TODO: IOCP backend
 #error "Windows IOCP backend not yet implemented"
 #elif defined(__APPLE__)
-// TODO: GCD backend
-#error "macOS GCD backend not yet implemented"
+#include "io_gcd.c"
 #else
 #error "Unsupported platform"
 #endif

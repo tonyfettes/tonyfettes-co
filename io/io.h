@@ -1,4 +1,5 @@
 #ifndef MOONBIT_CO_IO_H
+#define MOONBIT_CO_IO_H
 
 #include <moonbit.h>
 #include <stdint.h>
@@ -16,6 +17,8 @@ moonbit_co_io_submit_open(
   const char *path,
   int32_t flags,
   int32_t mode,
+  uint64_t *value,
+  int32_t *error,
   void *task
 );
 
@@ -26,6 +29,8 @@ moonbit_co_io_submit_read(
   uint64_t handle,
   void *bytes,
   int32_t length,
+  uint64_t *value,
+  int32_t *error,
   void *task
 );
 
@@ -36,6 +41,8 @@ moonbit_co_io_submit_write(
   uint64_t handle,
   void *bytes,
   int32_t length,
+  uint64_t *value,
+  int32_t *error,
   void *task
 );
 
@@ -44,6 +51,8 @@ void
 moonbit_co_io_submit_close(
   struct moonbit_co_io *io,
   uint64_t handle,
+  uint64_t *value,
+  int32_t *error,
   void *task
 );
 
@@ -52,9 +61,7 @@ void
 moonbit_co_io_poll(
   struct moonbit_co_io *io,
   void **tasks,
-  uint64_t *values,
-  int32_t *errors,
-  int32_t *length,
+  int32_t *count,
   int64_t timeout
 );
 
